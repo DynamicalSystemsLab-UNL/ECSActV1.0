@@ -112,13 +112,9 @@
     set(gcf,'units','normalized','outerposition',[0 0 1 1])
     xlim([-0.5*width 0.5*width-offset]) 
     ylim([0 scale*height])
-    daspect([ar 1 1])
+    daspect([1 1 1])
     cb = colorbar;
     cb.Color = [0.9,0.9,0.9];
-    %caxis([-0.35 0.35])
-    %ax = gca
-    %ax.FontSize = 1;
-    %set(gca,'xtick',[],'ytick',[])
     set(gca,'FontSize',18)
     set(gca, 'XColor',[0 0 0])
     set(gca, 'YColor',[0 0 0])
@@ -135,7 +131,6 @@
     set(gca,'TickLength',[0.0025, 0.0025])
     s_temp = "{\color{white}Nematic director field}";
     title(s_temp, 'Color','white','FontSize',18)
-    %title('Defect tracking', 'Color','white','FontSize',18)
     hold on
     quiver(Xr,Yr,N_xr,N_yr,0.55,'ShowArrowHead',0,'LineWidth',0.9,'Color',[0.1,0.1,0.1])
     hold off
@@ -164,8 +159,6 @@
     set(gca,'TickLength',[0.0025, 0.0025])
     cb = colorbar;
     cb.Color = [0.9,0.9,0.9];
-    %cb3 = colorbar('south')
-    %caxis([-0.046 0.046])
     set(gca,'FontSize',18)
     title('Flow velocity magnitude', 'Color','white')
     hold on
@@ -175,14 +168,10 @@
     set(gca,'TickLength',[0.0025, 0.0025])
     cb = colorbar;
     cb.Color = [0.9,0.9,0.9];
-    %cb3 = colorbar('south')
-    %caxis([-0.2 0.2])
     set(gca,'FontSize',18)
     title('Vorticity', 'Color','white')
     hold on
     quiver(X1,Y1,U,V,'LineWidth',0.75,'Color','black')
     hold off
 
-    %set(gca, 'color','black')
     export_fig("./snapshot.png")
-    %saveas(gcf,'snapshot__S0-1_h-7.png');
