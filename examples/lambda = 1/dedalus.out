@@ -1,0 +1,36 @@
+---------------------------------
+--- Parameters ------------------
+---------------------------------
+Ra = 4.0
+Er = 1.0
+Re = 0.0136
+b = 5.0
+lambda = 1.0
+width = 80.0
+height = 20.0
+NX = 128
+NY = 32
+initial timestep = 0.001
+---------------------------------
+
+Iteration = 100;   Time = 0.5988125000000004;   dt = 0.01
+Iteration = 200;   Time = 1.5988125000000013;   dt = 0.01
+Iteration = 300;   Time = 2.598812499999989;   dt = 0.01
+Iteration = 400;   Time = 3.5988124999999678;   dt = 0.01
+Iteration = 500;   Time = 4.598812499999947;   dt = 0.01
+Iteration = 600;   Time = 5.598812499999926;   dt = 0.01
+Iteration = 700;   Time = 6.598812499999904;   dt = 0.01
+Iteration = 800;   Time = 7.598812499999883;   dt = 0.01
+Iteration = 900;   Time = 8.598812499999863;   dt = 0.01
+Iteration = 1000;   Time = 9.598812499999841;   dt = 0.01
+Iteration = 1100;   Time = 10.59881249999982;   dt = 0.01
+Iteration = 1200;   Time = 11.598812499999799;   dt = 0.01
+Iteration = 1300;   Time = 12.598812499999777;   dt = 0.01
+Iteration = 1400;   Time = 13.598812499999756;   dt = 0.01
+Iteration = 1500;   Time = 14.598812499999735;   dt = 0.01
+Iteration = 1600;   Time = 15.598812499999713;   dt = 0.01
+Iteration = 1700;   Time = 16.5988124999998;   dt = 0.01
+Iteration = 1800;   Time = 17.598812499999955;   dt = 0.01
+Iteration = 1900;   Time = 18.59881250000011;   dt = 0.01
+Iteration = 2000;   Time = 19.598812500000268;   dt = 0.01
+Time: 83.90626229999907 seconds
