@@ -14,9 +14,8 @@ dataVx = h5read(data_file,'/tasks/Vx');
 
 
 dimX = length(dataX_); dimY = length(dataY_); NT = length(dataT);
-NT_begin = 2;
-NT_end = NT;
-width = 80; height = 20; ar = 1;
+NT_begin = 2; NT_end = NT;
+width = 80; height = 20;
 scale = 1; offset = width/dimX;
 
 % framerate; dt = 1 takes every snapshot from the data file, dt = 2 
@@ -127,7 +126,7 @@ for k=NT_begin:dt:NT_end
     set(gcf,'units','normalized','outerposition',[0 0 1 1])
     xlim([-0.5*width 0.5*width-offset]) 
     ylim([0 scale*height])
-    daspect([ar 1 1])
+    daspect([1 1 1])
     set(gca,'FontSize',26)
     set(gca, 'XColor',[0 0 0])
     set(gca, 'YColor',[0 0 0])
@@ -156,7 +155,7 @@ for k=NT_begin:dt:NT_end
     set(gcf,'units','normalized','outerposition',[0 0 1 1])
     xlim([-0.5*width 0.5*width-offset]) 
     ylim([0 scale*height])
-    daspect([ar 1 1])
+    daspect([1 1 1])
     set(gca,'FontSize',26)
     set(gca, 'XColor',[0 0 0])
     set(gca, 'YColor',[0 0 0])
