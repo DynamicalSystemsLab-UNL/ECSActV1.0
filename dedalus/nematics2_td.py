@@ -18,9 +18,18 @@ start = timeit.default_timer()
 # Log file
 log_file = open('dedalus.out', 'w')
 
+#---------------------------------------- #
+# Solver parameters
+#---------------------------------------- #
+d_input_mode = 'c' # Data input format; 'c' = coefficient representation and 'g' = grid representation
 Ra = 4.0 # "Active" Reynolds number, equation (23) in the documentation
 initial_timestep = 0.001 # Initial timestep that will be given to the adaptive timestepping routine later
 max_timestep = 0.01 # Maximum value for CFL (set to np.inf if you trust the CFL or are more interested in asymptotic behavior than exact time-dependence)
+
+Re = 0.0136 # Microscopic Reynolds number, equation (21) in the documentation
+Er = 1.0 # Ericksen number, equation (22)
+b = 5.0 # Free energy parameter, equation (17)
+lamb = 0 # Flow alignment; note that it is 'lamb' rather than 'lambda' to avoid conflict with the reserved Python keyword of the same name
 
 # Resolution of input data. Note that for real-valued domains, Dedalus only stores half the number of Fourier modes; 
 # with the remaining half determined by complex conjugation.
@@ -33,30 +42,75 @@ width = 80.0 # Channel width
 NX = NX_input # Change these if needed
 NY = NY_input #
 NXH = int(NX/2)
+#---------------------------------------- #
 
-# Input initial data
+#---------------------------------------- #
+# Bases and domain
+# To use periodic boundary conditions in the y-direction as well as x, just replace 'Chebyshev' with 'Fourier'
+# and delete the Dirichlet boundary conditions  in the 'problem.add_bc' commands. 
+#---------------------------------------- #
+x_basis = de.Fourier('x', NX, interval = (-0.5*width, 0.5*width), dealias = 2) # dealias factor is set to 2 to correct for cubic nonlinearities
+y_basis = de.Chebyshev('y', NY, interval = (0, height), dealias = 2)
+domain = de.Domain([x_basis, y_basis], grid_dtype = np.float64)
+xg = domain.grid(0)
+yg = domain.grid(1)
+#---------------------------------------- #
+
+#---------------------------------------- #
+# Initial data input
+#---------------------------------------- #
 input_filename = './initial_data.h5'
 input_file = h5py.File(input_filename, 'r')
-dataQAA_init = np.array(input_file.get('/QAA_coeff'))
-dataQAB_init = np.array(input_file.get('/QAB_coeff'))
-dataU_init = np.array(input_file.get('/U_coeff'))
-dataV_init = np.array(input_file.get('/V_coeff'))
 
-QAA_data_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
-QAB_data_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
-U_data_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
-V_data_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
+if d_input_mode == 'g' and NX_input == NX and NY_input == NY:
+	dataQAA_init = np.array(input_file.get('/QAA'))
+	dataQAB_init = np.array(input_file.get('/QAB'))
+	dataU_init = np.array(input_file.get('/U'))
+	dataV_init = np.array(input_file.get('/V'))
 
-# Use 'min(NXH,NXH_input)' to cover both cases when NXH_input > NXH or NXH_input < NXH
-QAA_data_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataQAA_init)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
-QAB_data_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataQAB_init)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
-U_data_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataU_init)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
-V_data_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataV_init)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
+	QAA_field = domain.new_field()
+	QAB_field = domain.new_field()
+	U_field = domain.new_field()
+	V_field = domain.new_field()
 
-Re = 0.0136 # Microscopic Reynolds number, equation (21) in the documentation
-Er = 1.0 # Ericksen number, equation (22)
-b = 5.0 # Free energy parameter, equation (17)
-lamb = 1.0 # Flow alignment; note that it is 'lamb' rather than 'lambda' to avoid conflict with the reserved Python keyword of the same name
+	QAA_field['g'] = dataQAA_init
+	QAB_field['g'] = dataQAB_init
+	U_field['g'] = dataU_init
+	V_field['g'] = dataV_init
+
+	QAA_field.require_coeff_space()
+	QAB_field.require_coeff_space()
+	U_field.require_coeff_space()
+	V_field.require_coeff_space()
+	
+	dataQAA_init_coeff = np.copy(QAA_field.data)
+	dataQAB_init_coeff = np.copy(QAB_field.data)
+	dataU_init_coeff = np.copy(U_field.data)
+	dataV_init_coeff = np.copy(V_field.data)
+elif d_input_mode == 'c':
+	dataQAA_init_coeff_ = np.array(input_file.get('/QAA_coeff'))
+	dataQAB_init_coeff_ = np.array(input_file.get('/QAB_coeff'))
+	dataU_init_coeff_ = np.array(input_file.get('/U_coeff'))
+	dataV_init_coeff_ = np.array(input_file.get('/V_coeff'))
+
+	dataQAA_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
+	dataQAB_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
+	dataU_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
+	dataV_init_coeff = np.zeros((NXH, NY), dtype = np.complex128)
+
+	# Use 'min(NXH,NXH_input)' to cover both cases when NXH_input > NXH or NXH_input < NXH
+	dataQAA_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataQAA_init_coeff_)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
+	dataQAB_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataQAB_init_coeff_)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
+	dataU_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataU_init_coeff_)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
+	dataV_init_coeff[0:min(NXH,NXH_input),0:min(NY,NY_input)] = np.copy(dataV_init_coeff_)[0:min(NXH,NXH_input),0:min(NY,NY_input)]
+else:
+	if d_input_mode == 'g' and (not NX_input == NX or not NY_input == NY):
+		print('Error: Changing resolution on input data in grid space is not currently supported.')
+		exit()
+	else:
+		print('Error: Data input mode not recognized.')
+		exit()
+#---------------------------------------- #
 
 print('\n')
 print('---------------------------------')
@@ -90,12 +144,6 @@ log_file.writelines('initial timestep = ' + str(initial_timestep) + '\n')
 log_file.writelines('---------------------------------' + '\n')
 log_file.writelines('\n')
 
-# Create bases and domain; to use periodic boundary conditions in the y-direction as well as x, just replace 'Chebyshev' with 'Fourier'
-# and delete the Dirichlet boundary conditions  in the 'problem.add_bc' commands. 
-x_basis = de.Fourier('x', NX, interval = (-0.5*width, 0.5*width), dealias = 2) # dealias factor is set to 2 to correct for cubic nonlinearities
-y_basis = de.Chebyshev('y', NY, interval = (0, height), dealias = 2)
-domain = de.Domain([x_basis, y_basis], grid_dtype = np.float64)
-
 #Create problem: define field variables, problem metadata, parameters, equations, and boundary conditions.
 #Here 'QAA' is the x,x component of the Q-tensor, and 'QAB' is the x,y component. 
 #'U' and 'V' are the x- and y-velocity components.
@@ -122,31 +170,11 @@ problem.add_equation("QAAy - dy(QAA) = 0")
 problem.add_equation("QABx - dx(QAB) = 0")
 problem.add_equation("QABy - dy(QAB) = 0")
 
-# --------------------------------------------------------#
-# Zero flow alignment (section 2.3.1 in the documentation)
-#problem.add_equation("dt(QAA)-dx(QAAx)-dy(QAAy)-QAA=-2*b*QAA*QAA*QAA-2*b*QAA*QAB*QAB-QAAx*U-QAAy*V+QAB*Uy-QAB*Vx")
-#problem.add_equation("dt(QAB)-dx(QABx)-dy(QABy)-QAB=-2*b*QAA*QAA*QAB-2*b*QAB*QAB*QAB-QAA*Uy+QAA*Vx-QABx*U-QABy*V")
-#problem.add_equation("Re*dt(U)+dx(p)-2*dx(Ux)-dy(Uy)-dx(Vy)+RaEr*QAAx+RaEr*QABy=-Re*U*Ux-Re*Uy*V")
-#problem.add_equation("Re*dt(V)+dy(p)-2*dy(Vy)-dx(Uy)-dx(Vx)-RaEr*QAAy+RaEr*QABx=-Re*U*Vx-Re*V*Vy")
-#problem.add_equation("Ux + Vy = 0")
-# --------------------------------------------------------#
-
-# Nonzero flow alignment, simplified (section 2.3.2)
-problem.add_equation("dt(QAA)-dx(QAAx)-dy(QAAy)-QAA=-10*QAA*QAA*QAA-10*QAA*QAB*QAB-QAAx*U-QAAy*V+QAB*Uy-QAB*Vx")
-problem.add_equation("dt(QAB)-dx(QABx)-dy(QABy)-QAB=-10*QAA*QAA*QAB-10*QAB*QAB*QAB-QAA*Uy+QAA*Vx-QABx*U-QABy*V")
-problem.add_equation("Re*dt(U)+dx(p)-2*dx(Ux)-dy(Uy)-dx(Vy)+RaEr*QAAx+RaEr*QABy=-Re*U*Ux-Re*Uy*V-6*Erinv*lamb*QAAx*QAA*QAA*b-2*Erinv*lamb*QABy*QAA*QAA*b-4*Erinv*lamb*QABx*QAA*QAB*b-4*Erinv*lamb*QAAy*QAA*QAB*b-2*Erinv*lamb*QAAx*QAB*QAB*b-6*Erinv*lamb*QABy*QAB*QAB*b+Erinv*lamb*QAAx+Erinv*lamb*QABy")
-problem.add_equation("Re*dt(V)+dy(p)-2*dy(Vy)-dx(Uy)-dx(Vx)-RaEr*QAAy+RaEr*QABx=-Re*U*Vx-Re*V*Vy-2*Erinv*lamb*QABx*QAA*QAA*b+6*Erinv*lamb*QAAy*QAA*QAA*b-4*Erinv*lamb*QAAx*QAA*QAB*b+4*Erinv*lamb*QABy*QAA*QAB*b-6*Erinv*lamb*QABx*QAB*QAB*b+2*Erinv*lamb*QAAy*QAB*QAB*b+Erinv*lamb*QABx-Erinv*lamb*QAAy")
+problem.add_equation("dt(QAA)-dx(QAAx)-dy(QAAy)-QAA-lamb*Ux=-2*b*QAA*QAA*QAA-2*b*QAA*QAB*QAB-QAAx*U-QAAy*V+QAB*Uy-QAB*Vx")
+problem.add_equation("dt(QAB)-dx(QABx)-dy(QABy)-QAB-0.5*lamb*Uy-0.5*lamb*Vx=-2*b*QAA*QAA*QAB-2*b*QAB*QAB*QAB-QAA*Uy+QAA*Vx-QABx*U-QABy*V")
+problem.add_equation("Re*dt(U)+dx(p)-2*dx(Ux)-dy(Uy)-dx(Vy)+RaEr*QAAx+RaEr*QABy=-Re*U*Ux-Re*Uy*V")
+problem.add_equation("Re*dt(V)+dy(p)-2*dy(Vy)-dx(Uy)-dx(Vx)-RaEr*QAAy+RaEr*QABx=-Re*U*Vx-Re*V*Vy")
 problem.add_equation("Ux + Vy = 0")
-#
-
-# --------------------------------------------------------#
-# Nonzero flow alignment, full (section 2.3.2)
-#problem.add_equation("dt(QAA)-dx(QAAx)-dy(QAAy)-QAA=-10*QAA*QAA*QAA-10*QAA*QAB*QAB-QAAx*U-QAAy*V+QAB*Uy-QAB*Vx")
-#problem.add_equation("dt(QAB)-dx(QABx)-dy(QABy)-QAB=-10*QAA*QAA*QAB-10*QAB*QAB*QAB-QAA*Uy+QAA*Vx-QABx*U-QABy*V")
-#problem.add_equation("Re*dt(U)+dx(p)-2*dx(Ux)-dy(Uy)-dx(Vy)+RaEr*QAAx+RaEr*QABy=-Re*U*Ux-Re*Uy*V+32*Erinv*lamb*QAA*QAA*QAA*QAB*QABx*b+32*Erinv*lamb*QAA*QAA*QAA*QAB*QAAy*b+48*Erinv*lamb*QAA*QAA*QAAx*QAB*QAB*b+16*Erinv*lamb*QAA*QAAx*QAB*QAB*b+16*Erinv*lamb*QAA*QAA*QAB*QABx*b-4*Erinv*lamb*QABx*QAA*QAB*b-4*Erinv*lamb*QAAy*QAA*QAB*b+32*Erinv*lamb*QAA*QAB*QAB*QAB*QAAy*b+48*Erinv*lamb*QAA*QAA*QAB*QAB*QABy*b+32*Erinv*lamb*QAA*QAB*QAB*QAB*QABx*b-12*Erinv*lamb*QAA*QAA*QAAx-4*Erinv*lamb*QAA*QAA*QABy-4*Erinv*lamb*QAAx*QAB*QAB-12*Erinv*lamb*QAB*QAB*QABy-4*Erinv*lamb*QAA*QAAx-4*Erinv*lamb*QAB*QABx+Erinv*lamb*QAAx+Erinv*lamb*QABy-6*Erinv*lamb*QAAx*QAA*QAA*b-2*Erinv*lamb*QABy*QAA*QAA*b-2*Erinv*lamb*QAAx*QAB*QAB*b-6*Erinv*lamb*QABy*QAB*QAB*b+40*Erinv*lamb*QAA*QAA*QAA*QAA*QAAx*b+8*Erinv*lamb*QAA*QAA*QAA*QAA*QABy*b+8*Erinv*lamb*QAAx*QAB*QAB*QAB*QAB*b+40*Erinv*lamb*QAB*QAB*QAB*QAB*QABy*b-8*Erinv*lamb*QAA*QAB*QABx-8*Erinv*lamb*QAA*QAB*QAAy+16*Erinv*lamb*QAA*QAA*QAA*QAAx*b+16*Erinv*lamb*QAB*QAB*QAB*QABx*b")
-#problem.add_equation("Re*dt(V)+dy(p)-2*dy(Vy)-dx(Uy)-dx(Vx)-RaEr*QAAy+RaEr*QABx=-Re*U*Vx-Re*V*Vy-4*Erinv*lamb*QAAx*QAA*QAB*b+4*Erinv*lamb*QABy*QAA*QAB*b+32*Erinv*lamb*QAA*QAA*QAA*QAAx*QAB*b-32*Erinv*lamb*QAA*QAA*QAA*QAB*QABy*b+48*Erinv*lamb*QAA*QAA*QAB*QAB*QABx*b-48*Erinv*lamb*QAA*QAA*QAB*QAB*QAAy*b+16*Erinv*lamb*QAA*QAB*QAB*QAAy*b+16*Erinv*lamb*QAA*QAA*QAB*QABy*b+32*Erinv*lamb*QAA*QAAx*QAB*QAB*QAB*b-32*Erinv*lamb*QAA*QAB*QAB*QAB*QABy*b-Erinv*lamb*QAAy-4*Erinv*lamb*QAA*QAA*QABx+12*Erinv*lamb*QAA*QAA*QAAy-12*Erinv*lamb*QAB*QAB*QABx+4*Erinv*lamb*QAB*QAB*QAAy-4*Erinv*lamb*QAA*QAAy-4*Erinv*lamb*QAB*QABy+Erinv*lamb*QABx-2*Erinv*lamb*QABx*QAA*QAA*b+6*Erinv*lamb*QAAy*QAA*QAA*b-6*Erinv*lamb*QABx*QAB*QAB*b+2*Erinv*lamb*QAAy*QAB*QAB*b+8*Erinv*lamb*QAA*QAA*QAA*QAA*QABx*b-40*Erinv*lamb*QAA*QAA*QAA*QAA*QAAy*b+40*Erinv*lamb*QAB*QAB*QAB*QAB*QABx*b-8*Erinv*lamb*QAB*QAB*QAB*QAB*QAAy*b-8*Erinv*lamb*QAA*QAAx*QAB+8*Erinv*lamb*QAA*QAB*QABy+16*Erinv*lamb*QAA*QAA*QAA*QAAy*b+16*Erinv*lamb*QAB*QAB*QAB*QABy*b")
-#problem.add_equation("Ux + Vy = 0")
-# --------------------------------------------------------#
 
 # Boundary conditions
 problem.add_bc("left(U) = 0") # No slip
@@ -162,14 +190,20 @@ problem.add_bc("right(QAB) = 0") #
 # Build and initialize solver (see end of section 4.3)
 solver = problem.build_solver(de.timesteppers.RK222)
 logger.info('Solver built')
-U_state_init = solver.state['U']
-V_state_init = solver.state['V']
 QAA_state_init = solver.state['QAA']
 QAB_state_init = solver.state['QAB']
-QAA_state_init['c'] = np.copy(dataQAA_init)
-QAB_state_init['c'] = np.copy(dataQAB_init)
-U_state_init['c'] = np.copy(dataU_init)
-V_state_init['c'] = np.copy(dataV_init)
+U_state_init = solver.state['U']
+V_state_init = solver.state['V']
+QAA_state_init['c'] = np.copy(dataQAA_init_coeff)
+QAB_state_init['c'] = np.copy(dataQAB_init_coeff)
+U_state_init['c'] = np.copy(dataU_init_coeff)
+V_state_init['c'] = np.copy(dataV_init_coeff)
+
+# Alternate initialization: specify functional form in grid space (make sure to also comment out the above lines of code initializing in coefficient space)
+#QAA_state_init['g'] = -0.5
+#QAB_state_init['g'] = 0
+#U_state_init['g'] = 0
+#V_state_init['g'] = 0
 
 # Output instantaneous channel averages (section 4.6)
 order_params = solver.evaluator.add_file_handler('order_params', sim_dt = 0.01, max_size = np.inf)
@@ -179,7 +213,7 @@ order_params.add_task("integ(QAA)/(height*width)", layout='g', name='qaa_int')
 order_params.add_task("integ(2*sqrt(QAA*QAA+QAB*QAB))/(height*width)", layout='g', name='S_int') # Channel-averaged order parameter
 
 # Output solution fields (section 4.6)
-full_solution = solver.evaluator.add_file_handler('full_solution', sim_dt = 0.04, max_size = np.inf)
+full_solution = solver.evaluator.add_file_handler('full_solution', sim_dt = 1.0, max_size = np.inf)
 #full_solution.add_task('QAA', layout='g', name='QAA')
 #full_solution.add_task('QAB', layout='g', name='QAB')
 full_solution.add_task('U', layout='g', name='U')
@@ -224,20 +258,3 @@ stop = timeit.default_timer()
 print('Time: ' + str(stop-start) + ' seconds')
 log_file.writelines('Time: ' + str(stop-start) + ' seconds')
 log_file.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
