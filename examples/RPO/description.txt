@@ -1,0 +1,15 @@
+Here, 'solution_init.h5' contains a known relative periodic orbit, including the period (T), shift (d), and field
+data for a single point on the phase space trajectory (grid space representations: QAA, QAB, U, V). The field data is also given in coefficient space, represented
+by 2D, complex-valued numpy arrays (QAA_coeff, QAB_coeff, U_coeff, V_coeff)
+
+The activity and channel dimensions are:
+	Ra = 2.5
+	height = 20.0
+	width = 20.0
+These and other parameters are contained in the .h5 file.
+
+The script here is the same as '/dedalus/nematics2__RPO.py' except that it increments Ra by 0.01. This is basically
+intended to be a nontrivial but (relatively) fast example of the ECS algorithms. 
+In realistic computations, the initial guess might not be so good, and convergence will take longer.
+
+Running the script will produce the contents of the 'output' folder.
