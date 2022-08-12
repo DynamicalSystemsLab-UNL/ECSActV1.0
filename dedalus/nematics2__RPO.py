@@ -78,15 +78,57 @@ xg = domain.grid(0)
 yg = domain.grid(1)
 #---------------------------------------- #
 
-#---------------------------------------- #
-# Initial data input
-#---------------------------------------- #
+#----------------------------------------------------------------------------------------- #
+#----------------------------------------------------------------------------------------- #
+# SOLVER MODES #
+#----------------------------------------------------------------------------------------- #
+#----------------------------------------------------------------------------------------- #
+
+# --------> RPO MODE (DEFAULT) <---------- #
 T_guess = np.array(input_file.get('/T')) # Initial guess for the period 'T'
 d_guess = np.array(input_file.get('/d')) # Initial guess for the shift 'd'
+#---------------------------------------- #
 
-tfac = 3*T_guess # will be used to rescale 'T' and 'd' when executing the Newton solver
-dfac = 5*d_guess #
+# --------> PO (PERIODIC ORBIT) MODE <---------- #
+# For POs, set the shift to something close to 0. Strictly speaking, it should be exactly 0, but
+# the current code requires a finite value to avoid division by 0.
+#T_guess = np.array(input_file.get('/T')) # Initial guess for the period 'T'
+#d_guess = 1e-12
+#---------------------------------------- #
 
+# --------> TW (TRAVELING WAVE) MODE <---------- #
+# For TWs, there is 1 unknown parameter in addition to the field data: namely,
+# the wave speed 'c'. To calculate TWs in this script, the initial value for 'T' is
+# taken to be 1.0 -- about 100 timesteps -- and 'd' is initialized to 'c*T'.
+# The value for 'T' is meant to be "small but not too small". If it is too large, then
+# the solver may leave the vicinity of the TW during the time integration (for unstable TWs). 
+# If it is too small, then the Newton solver will seek the trivial fixed point T = 0.
+#T_guess = 1.0
+#c_guess = c_guess # Input initial guess for the wave speed here
+#d_guess = c_guess*T_guess
+#---------------------------------------- #
+
+# --------> EQ (EQUILIBRIA) MODE <---------- #
+# Equilibria are treated similarly to traveling waves, except that 'd' is initialized as for a PO,
+# that is, approximately zero within working precision.)
+#T_guess = 1.0
+#d_guess = 1e-12
+#---------------------------------------- #
+
+#----------------------------------------------------------------------------------------- #
+#----------------------------------------------------------------------------------------- #
+
+#---------------------------------------- #
+# Will be used to rescale 'T' and 'd' 
+# when executing the Newton solver
+#---------------------------------------- #
+tfac = 3*T_guess
+dfac = 5*d_guess
+#---------------------------------------- #
+
+#---------------------------------------- #
+# Input field data for the initial guess
+#---------------------------------------- #
 if d_input_mode == 'g' and NX_input == NX and NY_input == NY:
 	dataQAA_init = np.array(input_file.get('/QAA')) # (x,x) component of Q-tensor in grid space
 	dataQAB_init = np.array(input_file.get('/QAB')) # (x,y) component of Q-tensor in grid space
