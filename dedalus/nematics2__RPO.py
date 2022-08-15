@@ -612,16 +612,17 @@ def GMRES(x_base, x0, b, kmax, tr):
 		rho = np.linalg.norm(res.fun)
 		if rho < min_error:
 			min_error = rho
-			min_vector = np.matmul(Q[:,0:k], res.x)
+			xk = np.matmul(Q[:,0:k], res.x)
 			
-	test = np.linalg.norm(applyNonLinearOperator(np.copy(x_base)+x0+min_vector))
+	test = np.linalg.norm(applyNonLinearOperator(np.copy(x_base)+x0+xk))
 	tr_local = tr
 	while test > 0.99*b_norm and tr_local > 1e-10:
 		res = Hookstep(H, beta, kmax - 1, tr_local)
 		xk = np.matmul(Q[:,0:(kmax-1)], res.x)
+		min_error = np.linalg.norm(res.fun)
 		test = np.linalg.norm(applyNonLinearOperator(np.copy(x_base)+x0+xk))
 		tr_local = 0.5*tr_local
-	return x0 + min_vector, min_error, tr
+	return x0 + xk, min_error, tr_local
 
 error = 0
 b = applyNonLinearOperator(f)
