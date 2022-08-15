@@ -1,0 +1,7 @@
+Run the script nematics2_td.py to compute time-dependent forward simulation. 
+
+Here, 'solution_init.h5' contains an initial condition corresponding to a single point on the phase space trajectory (grid space representations: QAA, QAB, U, V). The field data is also given in coefficient space, represented
+by 2D, complex-valued numpy arrays (QAA_coeff, QAB_coeff, U_coeff, V_coeff)
+
+The parameters are also contained in the solution_init.h5 file.
+
